@@ -42,9 +42,10 @@ public enum Catalog {
         }
     }
 
-    /// Catalogue en cache : taille verifiee avant la lecture.
+    /// Catalogue en cache : fichier ordinaire (pas un FIFO qui bloquerait la lecture), taille verifiee avant.
     public static func load(from url: URL) -> [CatalogEntry]? {
-        guard let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize, size <= maxSize,
+        guard let values = try? url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey]),
+              values.isRegularFile == true, let size = values.fileSize, size <= maxSize,
               let data = try? Data(contentsOf: url) else { return nil }
         return parse(data)
     }

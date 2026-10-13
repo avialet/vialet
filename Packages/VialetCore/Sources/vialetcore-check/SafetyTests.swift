@@ -82,4 +82,57 @@ let safetyTests: (String, [Test]) = ("Safety", [
                                       checked: ["fr.vialet.a", "fr.vialet.b"])
         expectEqual(merged, ["fr.vialet.b": SemanticVersion(2, 1), "fr.vialet.c": SemanticVersion(3)])
     },
+    Test("symlinksLeavingApplicationsAreRejected") {
+        try withTemporaryDirectory { dir in
+            let fm = FileManager.default
+            let root = dir.appendingPathComponent("Applications"), outside = dir.appendingPathComponent("Ailleurs")
+            try makeBundle(in: root, name: "Pico", bundleId: "fr.vialet.pico")
+            try makeBundle(in: outside, name: "Evil", bundleId: "fr.vialet.pico")
+            try makeBundle(in: outside.appendingPathComponent("Dossier"), name: "Evil", bundleId: "fr.vialet.pico")
+            try fm.createSymbolicLink(at: root.appendingPathComponent("Lien.app"), withDestinationURL: outside.appendingPathComponent("Evil.app"))
+            try fm.createSymbolicLink(at: root.appendingPathComponent("Dossier"), withDestinationURL: outside.appendingPathComponent("Dossier"))
+            let roots = [root]
+            expect(HubSafety.isAcceptableAppURL(root.appendingPathComponent("Pico.app"), roots: roots))
+            expect(!HubSafety.isAcceptableAppURL(root.appendingPathComponent("Lien.app"), roots: roots), ".app en lien vers l'exterieur")
+            expect(!HubSafety.isAcceptableAppURL(root.appendingPathComponent("Dossier/Evil.app"), roots: roots), "dossier en lien")
+            expect(!HubSafety.isAcceptableAppURL(outside.appendingPathComponent("Evil.app"), roots: roots))
+            expect(!HubSafety.isAcceptableAppURL(root, roots: roots), "pas un .app")
+            expect(HubSafety.isAcceptableAppPath(root.appendingPathComponent("Pico.app").path, roots: roots))
+            expect(!HubSafety.isAcceptableAppPath(root.appendingPathComponent("Lien.app").path, roots: roots))
+            // Le parcours ecarte les liens qui sortent des racines avant la deduplication : le lien vers
+            // une autre copie du meme bundle ne masque pas la vraie app.
+            let found = InstalledApp.scan(directories: [root]) { HubSafety.isAcceptableAppURL($0, roots: roots) }
+            expectEqual(found.map { $0.url.lastPathComponent }, ["Pico.app"])
+        }
+    },
+    Test("catalogCacheMustBeRegularFile") {
+        withTemporaryDirectory { dir in
+            let fifo = dir.appendingPathComponent("fifo.json")
+            expectEqual(mkfifo(fifo.path, 0o600), 0)
+            expectEqual(Catalog.load(from: fifo), nil, "FIFO : refuse sans bloquer")
+            expectEqual(Catalog.load(from: dir), nil, "dossier")
+        }
+    },
+    Test("infoPlistMustBeRegularAndSmall") {
+        try withTemporaryDirectory { dir in
+            let big = try makeBundle(in: dir, name: "Gros", bundleId: "fr.vialet.gros")
+            let plist = big.appendingPathComponent("Contents/Info.plist")
+            var data = try Data(contentsOf: plist)
+            data.append(Data(repeating: 0x20, count: InstalledApp.maxInfoPlistSize))
+            try data.write(to: plist)
+            expectEqual(InstalledApp.read(bundleURL: big), nil, "Info.plist > 1 Mo")
+            let fifoApp = dir.appendingPathComponent("Fifo.app/Contents")
+            try FileManager.default.createDirectory(at: fifoApp, withIntermediateDirectories: true)
+            expectEqual(mkfifo(fifoApp.appendingPathComponent("Info.plist").path, 0o600), 0)
+            expectEqual(InstalledApp.read(bundleURL: dir.appendingPathComponent("Fifo.app")), nil, "FIFO")
+            expectEqual(InstalledApp.maxInfoPlistSize, 1024 * 1024)
+        }
+    },
+    Test("responseSizeIsBounded") {
+        expectEqual(HubSafety.maxResponseSize, 2 * 1024 * 1024)
+        expect(HubSafety.isAcceptableResponse(byteCount: 10, expectedLength: -1))
+        expect(HubSafety.isAcceptableResponse(byteCount: HubSafety.maxResponseSize, expectedLength: -1))
+        expect(!HubSafety.isAcceptableResponse(byteCount: HubSafety.maxResponseSize + 1, expectedLength: -1))
+        expect(!HubSafety.isAcceptableResponse(byteCount: 0, expectedLength: Int64(HubSafety.maxResponseSize) + 1), "annonce trop grosse")
+    },
 ])

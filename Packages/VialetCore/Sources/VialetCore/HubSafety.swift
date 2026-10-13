@@ -32,11 +32,28 @@ public enum HubSafety {
     }
 
     /// Chemin d'app d'une fiche : absolu, sans `..`, extension `.app`, dans `/Applications`,
-    /// `~/Applications` ou un de leurs sous-dossiers (regle de `HubManifest.shouldPublish`).
+    /// `~/Applications` ou un de leurs sous-dossiers, liens symboliques resolus.
     public static func isAcceptableAppPath(_ path: String, home: URL) -> Bool {
+        isAcceptableAppPath(path, roots: HubManifest.applicationRoots(home: home))
+    }
+
+    public static func isAcceptableAppPath(_ path: String, roots: [URL]) -> Bool {
         guard path.hasPrefix("/") else { return false }
-        let url = URL(fileURLWithPath: path)
-        guard url.pathExtension == "app", !url.pathComponents.contains("..") else { return false }
-        return HubManifest.shouldPublish(bundleURL: url, home: home)
+        return isAcceptableAppURL(URL(fileURLWithPath: path), roots: roots)
+    }
+
+    /// Bundle `.app` sans `..`, dans une des racines une fois les liens symboliques resolus
+    /// (`HubManifest.isInApplications`) : un `.app` ou un dossier en lien qui sort des racines est refuse.
+    public static func isAcceptableAppURL(_ url: URL, roots: [URL]) -> Bool {
+        guard url.isFileURL, url.pathExtension == "app", !url.pathComponents.contains("..") else { return false }
+        return HubManifest.isInApplications(url, roots: roots)
+    }
+
+    /// Taille maximale d'une reponse reseau (Release GitHub, catalogue) : 2 Mo.
+    public static let maxResponseSize = 2 * 1024 * 1024
+
+    /// Reponse acceptee : taille annoncee (`expectedContentLength`, -1 si inconnue) et taille recue bornees.
+    public static func isAcceptableResponse(byteCount: Int, expectedLength: Int64) -> Bool {
+        byteCount <= maxResponseSize && expectedLength <= Int64(maxResponseSize)
     }
 }
