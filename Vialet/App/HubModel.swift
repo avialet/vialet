@@ -237,20 +237,20 @@ final class HubModel {
         NSWorkspace.shared.openApplication(at: app, configuration: NSWorkspace.OpenConfiguration())
     }
 
-    /// `<scheme>://<id>` adresse a cette app precisement (pas a une autre copie). Sans activation :
-    /// l'app au premier plan le reste (une dictee doit se coller la ou l'on etait) ; l'app ciblee
-    /// s'active elle-meme si son action ouvre une fenetre.
+    /// `<scheme>://<id>` adresse a cette app precisement (pas a une autre copie). L'app est activee
+    /// (fenetre, feuille ou editeur au premier plan avec le clavier), sauf pour les actions qui
+    /// travaillent pour l'app deja au premier plan : une dictee doit se coller la ou l'on etait.
     func perform(_ action: AppAction, of entry: HubEntry) {
         guard let url = entry.url(for: action.id) else { return open(entry) }
         guard let app = verifiedAppURL(entry) else { return }
-        NSWorkspace.shared.open([url], withApplicationAt: app, configuration: Self.inBackground)
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = !Self.backgroundActions.contains("\(entry.bundleIdentifier)/\(action.id)")
+        NSWorkspace.shared.open([url], withApplicationAt: app, configuration: configuration)
     }
 
-    private static var inBackground: NSWorkspace.OpenConfiguration {
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.activates = false
-        return configuration
-    }
+    /// Actions qui ne doivent pas faire passer leur app au premier plan (a remonter dans la fiche
+    /// du kit quand une autre app en aura besoin).
+    private static let backgroundActions: Set<String> = ["fr.vialet.chuchote/dicter"]
 
     /// L'app verifie et propose sa mise a jour (`<scheme>://update`) ; sans schema, elle s'ouvre
     /// (sa verification de lancement s'en charge).
