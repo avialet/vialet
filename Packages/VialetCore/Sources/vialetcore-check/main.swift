@@ -1,0 +1,5 @@
+import VialetCore
+
+run([
+    databaseTests,
+])
