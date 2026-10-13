@@ -19,6 +19,27 @@ public enum HubUpdates {
         return URL(string: "https://api.github.com/repos/\(repository)/releases/latest")
     }
 
+    /// Ce que vaut une reponse de GitHub pour une app.
+    public enum Outcome: Equatable, Sendable {
+        /// 200 (Release lue) ou 404 (aucune Release) : l'app est interrogee.
+        case result
+        /// 304 (ETag inchange) : interrogee, resultat precedent garde.
+        case unchanged
+        /// 403 ou 429 (quota) : arreter la verification, les apps restantes ne sont pas interrogees.
+        case stop
+        /// Autre : app non interrogee cette fois.
+        case skip
+    }
+
+    public static func outcome(status: Int) -> Outcome {
+        switch status {
+        case 200, 404: .result
+        case 304: .unchanged
+        case 403, 429: .stop
+        default: .skip
+        }
+    }
+
     /// Resultat d'une verification interrompue ou complete : les apps interrogees (`checked`) prennent
     /// leur nouveau resultat (`found`, absent = a jour), les autres gardent le precedent.
     public static func merge(previous: [String: SemanticVersion], found: [String: SemanticVersion],

@@ -38,6 +38,11 @@ final class HubModel {
     /// Mises a jour trouvees, gardees d'un lancement a l'autre (le plancher de 30 min s'applique aussi
     /// apres une relance).
     private var updatesKey: String { Brand.key("AppUpdates") }
+    /// ETag de la derniere Release lue, par depot (requetes conditionnelles).
+    private var etagsKey: String { Brand.key("ReleaseETags") }
+    @ObservationIgnored private var isCheckingApps = false
+    /// Une verification a deja abouti : le resultat garde (aucune mise a jour) vaut pour un 304.
+    private var lastAppsCheckKnown: Bool { defaults.object(forKey: lastAppsCheckKey) != nil }
 
     private static var supportDirectory: URL {
         HubManifest.directory.deletingLastPathComponent()
@@ -159,28 +164,51 @@ final class HubModel {
 
     func checkApps() {
         let apps = listing.apps
-        guard !apps.isEmpty else { return }
+        guard !apps.isEmpty, !isCheckingApps else { return }
+        isCheckingApps = true
         Task {
+            defer { isCheckingApps = false }
             var found: [String: SemanticVersion] = [:]
-            var anySuccess = false
+            var checked = Set<String>()
+            var stopped = false
+            var etags = defaults.dictionary(forKey: etagsKey) as? [String: String] ?? [:]
             for app in apps {
                 guard let repository = app.repository, let url = HubUpdates.releaseURL(repository: repository) else { continue }
                 var request = URLRequest(url: url)
                 request.timeoutInterval = 15
+                request.cachePolicy = .reloadIgnoringLocalCacheData
                 request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
                 request.setValue(Brand.name, forHTTPHeaderField: "User-Agent")
-                guard let (data, response) = try? await URLSession.shared.data(for: request),
-                      let status = (response as? HTTPURLResponse)?.statusCode else { continue }
-                if status == 403 || status == 429 { break } // quota GitHub : on reessaiera plus tard
-                anySuccess = true
-                if status == 200, let next = HubUpdates.available(installed: app.version, releaseJSON: data, appName: app.name) {
-                    found[app.bundleIdentifier] = next
+                // ETag : une Release inchangee repond 304, sans compter dans le quota de GitHub.
+                if let etag = etags[repository], updates[app.bundleIdentifier] != nil || lastAppsCheckKnown {
+                    request.setValue(etag, forHTTPHeaderField: "If-None-Match")
                 }
+                guard let (data, response) = try? await URLSession.shared.data(for: request),
+                      let http = response as? HTTPURLResponse else { continue }
+                switch HubUpdates.outcome(status: http.statusCode) {
+                case .result:
+                    checked.insert(app.bundleIdentifier)
+                    etags[repository] = http.value(forHTTPHeaderField: "ETag")
+                    if http.statusCode == 200,
+                       let next = HubUpdates.available(installed: app.version, releaseJSON: data, appName: app.name) {
+                        found[app.bundleIdentifier] = next
+                    }
+                case .unchanged:
+                    checked.insert(app.bundleIdentifier)
+                    if let previous = updates[app.bundleIdentifier] { found[app.bundleIdentifier] = previous }
+                case .stop:
+                    stopped = true
+                case .skip:
+                    break
+                }
+                if stopped { break }
             }
-            guard anySuccess else { return }
-            defaults.set(Date(), forKey: lastAppsCheckKey)
-            defaults.set(found.mapValues(\.description), forKey: updatesKey)
-            updates = found
+            defaults.set(etags, forKey: etagsKey)
+            let merged = HubUpdates.merge(previous: updates, found: found, checked: checked)
+            defaults.set(merged.mapValues(\.description), forKey: updatesKey)
+            updates = merged
+            // Horodatage seulement pour une verification complete : coupee par le quota, on reessaiera.
+            if !stopped, !checked.isEmpty { defaults.set(Date(), forKey: lastAppsCheckKey) }
         }
     }
 

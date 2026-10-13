@@ -37,4 +37,13 @@ let updatesTests: (String, [Test]) = ("HubUpdates", [
         expectEqual(HubUpdates.releaseURL(repository: "avialet/pico"),
                     URL(string: "https://api.github.com/repos/avialet/pico/releases/latest"))
     },
+    Test("responseOutcome") {
+        expectEqual(HubUpdates.outcome(status: 200), .result)
+        expectEqual(HubUpdates.outcome(status: 404), .result, "aucune Release : a jour")
+        expectEqual(HubUpdates.outcome(status: 304), .unchanged, "ETag : resultat precedent garde")
+        expectEqual(HubUpdates.outcome(status: 403), .stop, "quota : on coupe")
+        expectEqual(HubUpdates.outcome(status: 429), .stop)
+        expectEqual(HubUpdates.outcome(status: 500), .skip, "erreur : app non interrogee")
+        expectEqual(HubUpdates.outcome(status: 301), .skip)
+    },
 ])
