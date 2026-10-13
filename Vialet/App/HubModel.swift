@@ -49,7 +49,7 @@ final class HubModel {
     /// Au lancement : catalogue en cache, liste, puis (si la recherche automatique est permise)
     /// catalogue du jour et mises a jour des apps, toutes les 6 h ensuite.
     func start() {
-        catalog = (try? Data(contentsOf: Self.catalogCacheURL)).flatMap(Catalog.parse)
+        catalog = Catalog.load(from: Self.catalogCacheURL)
         let saved = defaults.dictionary(forKey: updatesKey) as? [String: String] ?? [:]
         updates = saved.compactMapValues(SemanticVersion.init(string:))
         reload()
@@ -91,16 +91,22 @@ final class HubModel {
         var installed = InstalledApp.scan(directories: [URL(fileURLWithPath: "/Applications"),
                                                          home.appendingPathComponent("Applications")])
         let manifests = HubManifest.loadAll(from: HubManifest.directory)
-        func add(_ url: URL?) {
-            guard let url, !url.pathComponents.contains(where: { $0 == ".Trash" || $0 == ".Trashes" }),
-                  let app = InstalledApp.read(bundleURL: url),
+        /// Une app hors des dossiers parcourus, retenue seulement si son Info.plist porte le bundle attendu.
+        func add(_ url: URL?, expecting bundleIdentifier: String) {
+            guard let url, url.pathExtension == "app",
+                  !url.pathComponents.contains(where: { $0 == ".Trash" || $0 == ".Trashes" }),
+                  let app = InstalledApp.read(bundleURL: url), app.bundleIdentifier == bundleIdentifier,
                   !installed.contains(where: { $0.bundleIdentifier == app.bundleIdentifier }) else { return }
             installed.append(app)
         }
-        // Apps rangees ailleurs : la fiche publiee, puis LaunchServices pour le catalogue.
-        for m in manifests { add(URL(fileURLWithPath: m.appPath)) }
+        // Fiches (non fiables) : chemin d'app dans un dossier Applications seulement.
+        for m in manifests where HubSafety.isAcceptableAppPath(m.appPath, home: home) {
+            add(URL(fileURLWithPath: m.appPath), expecting: m.bundleIdentifier)
+        }
+        // Catalogue : LaunchServices.
         for entry in catalog ?? [] {
-            add(NSWorkspace.shared.urlForApplication(withBundleIdentifier: entry.bundleIdentifier))
+            add(NSWorkspace.shared.urlForApplication(withBundleIdentifier: entry.bundleIdentifier),
+                expecting: entry.bundleIdentifier)
         }
         return HubListing.build(installed: installed, manifests: manifests, catalog: catalog)
     }
@@ -180,21 +186,36 @@ final class HubModel {
 
     // MARK: Actions
 
+    /// Le bundle de l'entree, relu juste avant de l'ouvrir : une app `.app` dont l'Info.plist porte
+    /// toujours le bundle attendu ; nil sinon (rien n'est ouvert).
+    private func verifiedAppURL(_ entry: HubEntry) -> URL? {
+        let url = entry.appURL
+        guard url.pathExtension == "app",
+              InstalledApp.read(bundleURL: url)?.bundleIdentifier == entry.bundleIdentifier else {
+            reload()
+            return nil
+        }
+        return url
+    }
+
     func open(_ entry: HubEntry) {
-        NSWorkspace.shared.openApplication(at: entry.appURL, configuration: NSWorkspace.OpenConfiguration())
+        guard let app = verifiedAppURL(entry) else { return }
+        NSWorkspace.shared.openApplication(at: app, configuration: NSWorkspace.OpenConfiguration())
     }
 
     /// `<scheme>://<id>` adresse a cette app precisement (pas a une autre copie).
     func perform(_ action: AppAction, of entry: HubEntry) {
         guard let url = entry.url(for: action.id) else { return open(entry) }
-        NSWorkspace.shared.open([url], withApplicationAt: entry.appURL, configuration: NSWorkspace.OpenConfiguration())
+        guard let app = verifiedAppURL(entry) else { return }
+        NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
     }
 
     /// L'app verifie et propose sa mise a jour (`<scheme>://update`) ; sans schema, elle s'ouvre
     /// (sa verification de lancement s'en charge).
     func update(_ entry: HubEntry) {
         guard let url = entry.updateURL else { return open(entry) }
-        NSWorkspace.shared.open([url], withApplicationAt: entry.appURL, configuration: NSWorkspace.OpenConfiguration())
+        guard let app = verifiedAppURL(entry) else { return }
+        NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
     }
 
     func openSite(_ url: URL?) {
