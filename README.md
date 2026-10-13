@@ -14,11 +14,15 @@
 
 ## Ce que fait Vialet
 
-<!-- a adapter : trois idees, une phrase chacune -->
+Une seule icône dans la barre des menus pour toutes les apps vialet.app : un clic, et chaque app
+est là avec sa plaque, ses actions rapides et ses mises à jour.
 
-- **Première idée.** Une phrase.
-- **Deuxième idée.** Une phrase.
-- **Rester chez vous.** Tout est stocké sur votre Mac. Aucun compte, aucun serveur, aucune télémétrie.
+- **Toutes vos apps, un clic.** Chaque app installée, dans l'ordre du catalogue de vialet.app :
+  un clic l'ouvre, ses actions rapides (« Nouvelle tâche », « Dicter »…) sont à côté.
+- **Les mises à jour en un coup d'œil.** Un point corail sur l'icône quand une app a une nouvelle
+  version ; « Mise à jour X.Y.Z disponible » l'ouvre et lui laisse l'installer.
+- **Une barre des menus dégagée.** Les apps vialet.app masquent leur propre icône quand Vialet est
+  installée (réglable dans chaque app). Aucune liste à tenir : une nouvelle app apparaît d'elle-même.
 
 ## Installation
 
@@ -44,29 +48,32 @@ shasum -a 256 -c Vialet-X.Y.Z.dmg.sha256
 
 ### Mises à jour
 
-Vialet consulte une fois par jour la dernière version publiée sur GitHub. S'il en
-existe une plus récente, un clic la télécharge, **vérifie son empreinte SHA-256**, contrôle
-l'application qu'elle contient, la remplace et relance l'app. Si une étape échoue, l'app
-installée n'est pas touchée. La recherche automatique se désactive dans **Réglages › Mises à jour**.
-
-Le seul échange réseau de Vialet est cette lecture de la version publiée. Aucune donnée n'est envoyée.
+Vialet consulte au lancement, puis toutes les 6 heures, la dernière version publiée sur GitHub de
+Vialet et de chaque app installée. Pour Vialet, un clic dans son menu la télécharge, **vérifie son
+empreinte SHA-256**, contrôle l'application qu'elle contient, la remplace et relance l'app. Pour les
+autres apps, Vialet signale la version et l'app s'en charge elle-même. La recherche automatique se
+désactive dans **Réglages › Mises à jour**.
 
 ## Notice
 
-<!-- a adapter -->
+- **L'icône** : la plaque de vialet.app (un secteur par app) en tons de gris, comme les symboles
+  du système. Un point corail signale une mise à jour en attente.
+- **Le menu** : une ligne par app installée (sa plaque, son nom, sa version) ; un clic sur la ligne
+  ouvre l'app, un clic sur une pastille lance son action rapide. Sous « À découvrir », les apps du
+  catalogue pas encore installées (réglable). Échap ou un clic ailleurs le ferme.
+- **Raccourci global** facultatif (⌃⌥⇧Espace par défaut, à activer dans les Réglages) : ouvre le menu.
+- **Ordre des apps** : celui du catalogue de vialet.app (lu une fois par jour), puis alphabétique.
+- Le lien `vialet://` ouvre le menu. Vialet n'a ni fenêtre principale ni icône dans le Dock :
+  **Quitter Vialet** est dans son menu.
 
-- **Raccourci global** (⌃⌥⇧Espace par défaut, modifiable dans les Réglages) : affiche ou masque Vialet depuis n'importe quelle app.
-- Fermer la fenêtre ne quitte pas l'app : le raccourci et l'icône de la barre des menus restent actifs. **⌘Q** quitte vraiment.
-- Le lien `vialet://` ouvre la fenêtre principale.
-- **À propos de Vialet** (menu de l'app ou de la barre des menus) : version, licence MIT, liens vers le site et le code source.
+### Comment Vialet trouve les apps
 
-### Vos données
-
-```text
-~/Library/Application Support/Vialet/vialet.sqlite
-```
-
-Pour sauvegarder, copiez ce dossier. Pour repartir de zéro, quittez l'app et supprimez-le.
+Vialet lit les apps `fr.vialet.*` de `/Applications` et `~/Applications` (et leurs sous-dossiers
+directs), puis la fiche que chaque app publie à son lancement dans
+`~/Library/Application Support/Vialet/apps/<bundle id>.json` : teintes, glyphe, actions rapides
+(format décrit dans le README de [VialetKit](https://github.com/avialet/vialetkit)). Une app jamais
+lancée apparaît avec sa seule entrée « Ouvrir ». Le catalogue est gardé en cache dans
+`~/Library/Application Support/Vialet/catalog.json`.
 
 ## Compiler depuis les sources
 
@@ -85,14 +92,14 @@ L'icône et l'habillage du DMG viennent de l’outillage commun des apps vialet.
 (`scripts/plaque.swift`), cloné à côté de l'app (sinon `VIALETAPPS_PATH=<chemin>`) :
 
 ```bash
-make icon         # icône : plaque aux teintes de App/Brand.swift, son glyphe (initiale s'il est vide)
+make icon         # icône : la plaque du hub (un secteur par app du catalogue ../apps-site)
 make dmg-layout   # fond et disposition de la fenêtre du DMG, dans scripts/dmg (à committer)
 ```
 
 | Dossier | Contenu |
 |---|---|
-| `Packages/VialetCore` | Noyau sans interface : modèles, base SQLite ([GRDB](https://github.com/groue/GRDB.swift)), logique |
-| `Vialet` | L'application SwiftUI ; `App/Brand.swift` porte son identité |
+| `Packages/VialetCore` | Noyau sans interface : catalogue, apps installées, liste du menu, mises à jour, icônes |
+| `Vialet` | L'application (AppKit et SwiftUI) ; `App/Brand.swift` porte son identité |
 | `scripts` | Assemblage de l'app et du DMG ; `scripts/dmg` : fond et disposition de sa fenêtre |
 | `docs` | [Publier une version](docs/publier-une-version.md), [tests](docs/tests.md), notes de version |
 
@@ -103,8 +110,9 @@ les utilisateurs reçoivent la mise à jour dans l'app.
 
 ## Confidentialité
 
-Vialet ne collecte rien. Vos données ne quittent jamais votre Mac. La seule requête
-réseau est la lecture de la dernière version publiée sur GitHub, que vous pouvez désactiver.
+Vialet ne collecte rien et n'envoie aucune donnée. Ses seules requêtes réseau sont la lecture des
+dernières versions publiées sur GitHub (Vialet et vos apps vialet.app) et celle du catalogue de
+vialet.app, une fois par jour ; **Réglages › Mises à jour › Rechercher automatiquement** les coupe.
 
 ## Licence
 
