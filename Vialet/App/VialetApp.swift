@@ -1,41 +1,19 @@
-import SwiftUI
+import AppKit
 import VialetKit
 
+/// Vialet n'est qu'une icone de barre des menus (LSUIElement) : pas de scene SwiftUI, une app AppKit
+/// dont le delegue pose l'icone, le menu et les reglages.
 @main
-struct VialetApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @State private var state = AppState.shared
-    @AppStorage(Brand.key("MenuBar")) private var menuBarVisible = true
-
-    /// Teintes de l'app avant le premier rendu (et police Bricolage Grotesque des titres).
-    init() { Theme.configure(Brand.palette) }
-
-    var body: some Scene {
-        Window(Brand.displayName, id: "main") {
-            MainWindow()
-                .environment(state)
-                .fontDesign(.rounded)
-                .frame(minWidth: 640, minHeight: 420)
-                .onAppear { AppearanceChoice.current(defaultsKey: Brand.key("Appearance")).apply(defaultsKey: Brand.key("Appearance")) }
-                .captureOpenWindow()
-        }
-        .windowStyle(.hiddenTitleBar)
-        .windowBackgroundDragBehavior(.enabled)
-        .defaultSize(width: 860, height: 560)
-        .commands { AboutCommands(identity: Brand.identity) }
-
-        Settings {
-            SettingsView()
-        }
-
-        MenuBarExtra(isInserted: $menuBarVisible) {
-            MenuBarContent().environment(state)
-        } label: {
-            if Brand.glyph.isEmpty {
-                Image(systemName: "app.dashed") // repli tant que le glyphe n'est pas dessine
-            } else {
-                MenuBarIcon(glyph: Brand.glyph)
-            }
-        }
+@MainActor
+enum VialetApp {
+    static func main() {
+        // Teintes de vialet.app avant le premier rendu (et police Bricolage Grotesque des titres).
+        Theme.configure(Brand.palette)
+        let app = NSApplication.shared
+        let delegate = AppDelegate()
+        app.delegate = delegate
+        app.setActivationPolicy(.accessory)
+        app.mainMenu = AppDelegate.makeMainMenu()
+        withExtendedLifetime(delegate) { app.run() }
     }
 }

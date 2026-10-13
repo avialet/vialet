@@ -46,6 +46,7 @@ targets:
           - CFBundleURLName: fr.vialet.vialet
             CFBundleURLSchemes: [vialet]
         LSApplicationCategoryType: public.app-category.productivity
+        LSUIElement: true
         CFBundleIconFile: AppIcon
     entitlements:
       path: Vialet/Resources/Vialet.entitlements

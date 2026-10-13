@@ -72,10 +72,11 @@ dmg-layout:
 test:
 	cd $(CORE) && swift run vialetcore-check $(FILTER)
 
-# Icone : plaque de l'affiche (glyphe de Brand.swift, initiale s'il est vide), par scripts/plaque.swift.
+# Icone : la plaque du hub (un secteur par app du catalogue ../apps-site/site/public/apps.json, ou
+# HUB_APPS_JSON=<chemin>), et non la plaque mono-glyphe des autres apps. A refaire quand le catalogue change.
 icon:
 	@[ -f "$(PLAQUE)" ] || { echo "plaque.swift introuvable : $(PLAQUE) (VIALETAPPS_PATH=<depot vialetapps>)" >&2; exit 1; }
-	swift "$(PLAQUE)" iconset $(APP)/App/Brand.swift $(BUILD_DIR) >/dev/null
+	swift "$(PLAQUE)" hub-iconset $(BUILD_DIR) >/dev/null
 	iconutil -c icns $(BUILD_DIR)/AppIcon.iconset -o $(APP)/Resources/AppIcon.icns
 
 clean:

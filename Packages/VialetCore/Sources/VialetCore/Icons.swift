@@ -18,15 +18,15 @@ public enum StatusIcon {
         public static let chosen: Variant = .tons
     }
 
-    /// Cote du canevas (points) ; la plaque fait 16 pt, alignee sur la grille des pixels.
+    /// Cote du canevas (points) ; la plaque fait 14 pt (poids des symboles systeme), alignee sur la grille des pixels.
     public static let pointSize: CGFloat = 18
-    static let plate = CGRect(x: 1, y: 1, width: 16, height: 16)
+    static let plate = CGRect(x: 2, y: 2, width: 14, height: 14)
     /// Opacites des cinq secteurs de `tons`, depuis midi : voisins toujours distincts.
     public static let tones: [CGFloat] = [1.0, 0.5, 0.82, 0.32, 0.66]
     /// Point de mise a jour (coordonnees AppKit du canevas, y vers le haut) et son encoche.
-    public static let dotCenter = CGPoint(x: 15.2, y: 15.2)
-    public static let dotDiameter: CGFloat = 5.4
-    static let notchRadius: CGFloat = 4.4
+    public static let dotCenter = CGPoint(x: 14.6, y: 14.6)
+    public static let dotDiameter: CGFloat = 5
+    static let notchRadius: CGFloat = 4.1
 
     /// Image template de 18 pt. `notched` : encoche transparente en haut a droite pour le point
     /// de mise a jour, pose a part en couleur.
@@ -75,7 +75,7 @@ public enum StatusIcon {
             }
             ctx.restoreGState()
         case .grille:
-            let side: CGFloat = 7, gap: CGFloat = 2
+            let side: CGFloat = 6, gap: CGFloat = 2
             for (i, j) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
                 let r = CGRect(x: plate.minX + CGFloat(i) * (side + gap), y: plate.minY + CGFloat(j) * (side + gap),
                                width: side, height: side)

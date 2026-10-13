@@ -5,19 +5,19 @@ import VialetKit
 enum Brand {
     static let name = "Vialet"
     static let displayName = "Vialet"
-    /// Teintes de l'affiche (sites, plaques, DMG, interface), calculees par scripts/teintes.py :
-    /// texte `deep` sur `background`. Une teinte par ligne `cle: 0x...` (lue par les scripts du socle).
-    static let palette = AccentPalette(accent: 0x6A6E75, background: 0x73777E,
-                                       deep: 0x05060B, pale: 0xEBF2FF,
-                                       night: 0x0F1A2F, nightInk: 0xC4D8FD)
-    /// Pictogramme de la plaque : sous-ensemble SVG absolu (M L H V C Q Z), boite 0-100, trait non rempli.
-    /// Vide = initiale en repli. Dessiner le trace, verifier avec `swift ../scripts/plaque.swift planche`, puis `make icon`.
+    /// Teintes de vialet.app elle-meme : papier et encre du hub (fond #F7F3EC, texte #1E2227 ; en sombre
+    /// #14161B et #EDE9E2), les couleurs restant aux plaques des apps. Accent : l'encre douce #6A6E75,
+    /// neutre et lisible en clair comme en sombre (contraste 4,6 sur le papier, 3,0 sur une carte sombre),
+    /// la ou l'encre #1E2227 disparaitrait en sombre (1,1). Une teinte par ligne `cle: 0x...`.
+    static let palette = AccentPalette(accent: 0x6A6E75, background: 0xF7F3EC,
+                                       deep: 0x1E2227, pale: 0xF7F3EC,
+                                       night: 0x14161B, nightInk: 0xEDE9E2)
+    /// Pas de glyphe : l'icone de Vialet est la plaque du hub (un secteur par app, `make icon`).
     static let glyph = ""
-    /// Trait du glyphe en `deep` plutot qu'en blanc (accent trop clair pour un trait blanc).
     static let strokeDeep = false
     static let identity = AppIdentity(name: name, displayName: displayName, repository: "avialet/vialet",
                                       bundleIdentifier: "fr.vialet.vialet", palette: palette, glyph: glyph,
-                                      strokeDeep: strokeDeep)
+                                      strokeDeep: strokeDeep, site: URL(string: "https://vialet.app")!)
     static let updater = UpdaterConfiguration(identity)
 
     /// Cles UserDefaults, prefixees par le nom de l'app.
@@ -29,8 +29,8 @@ extension Updater {
 }
 
 extension HotKeyController {
-    /// Choisir un raccourci libre : ⇧⌘Espace (Pico), ⌃⌥⌘Espace (Allege), ⌃⇧Espace (Pince) et ⌥⇧Espace (Brouillon)
-    /// sont deja pris. Mettre a jour la ligne « Raccourci global » du README.
+    /// Raccourci facultatif (coupe par defaut) qui ouvre le menu. Deja pris : ⇧⌘Espace (Pico), ⌃⌥⌘Espace
+    /// (Allege), ⌃⇧Espace (Pince), ⌥⇧Espace (Brouillon), ⌃⌥Espace (Chuchote).
     static let shared = HotKeyController(defaultsKey: Brand.key("HotKey"), logName: Brand.displayName,
                                          initial: .space([.control, .option, .shift]))
 }
