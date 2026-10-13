@@ -93,13 +93,14 @@ final class HubModel {
     private nonisolated static func scan(catalog: [CatalogEntry]?) -> HubListing {
         let fm = FileManager.default
         let home = fm.homeDirectoryForCurrentUser
-        var installed = InstalledApp.scan(directories: [URL(fileURLWithPath: "/Applications"),
-                                                         home.appendingPathComponent("Applications")])
+        // Racines /Applications et ~/Applications ; un .app ou dossier en lien qui en sort est ecarte.
+        let roots = HubManifest.applicationRoots(home: home)
+        var installed = InstalledApp.scan(directories: roots) { HubSafety.isAcceptableAppURL($0, roots: roots) }
         let manifests = HubManifest.loadAll(from: HubManifest.directory)
-        /// Une app hors des dossiers parcourus, retenue seulement si son Info.plist porte le bundle attendu.
+        /// Une app d'un sous-dossier plus profond (fiche, LaunchServices), retenue seulement dans les racines
+        /// et si son Info.plist porte le bundle attendu.
         func add(_ url: URL?, expecting bundleIdentifier: String) {
-            guard let url, url.pathExtension == "app",
-                  !url.pathComponents.contains(where: { $0 == ".Trash" || $0 == ".Trashes" }),
+            guard let url, HubSafety.isAcceptableAppURL(url, roots: roots),
                   let app = InstalledApp.read(bundleURL: url), app.bundleIdentifier == bundleIdentifier,
                   !installed.contains(where: { $0.bundleIdentifier == app.bundleIdentifier }) else { return }
             installed.append(app)
@@ -142,6 +143,7 @@ final class HubModel {
             request.timeoutInterval = 15
             guard let (data, response) = try? await URLSession.shared.data(for: request),
                   (response as? HTTPURLResponse)?.statusCode == 200,
+                  HubSafety.isAcceptableResponse(byteCount: data.count, expectedLength: response.expectedContentLength),
                   let entries = Catalog.parse(data) else { return }
             try? FileManager.default.createDirectory(at: Self.supportDirectory, withIntermediateDirectories: true)
             try? data.write(to: Self.catalogCacheURL, options: .atomic)
@@ -184,7 +186,9 @@ final class HubModel {
                     request.setValue(etag, forHTTPHeaderField: "If-None-Match")
                 }
                 guard let (data, response) = try? await URLSession.shared.data(for: request),
-                      let http = response as? HTTPURLResponse else { continue }
+                      let http = response as? HTTPURLResponse,
+                      HubSafety.isAcceptableResponse(byteCount: data.count, expectedLength: http.expectedContentLength)
+                else { continue }
                 switch HubUpdates.outcome(status: http.statusCode) {
                 case .result:
                     checked.insert(app.bundleIdentifier)
@@ -214,11 +218,13 @@ final class HubModel {
 
     // MARK: Actions
 
-    /// Le bundle de l'entree, relu juste avant de l'ouvrir : une app `.app` dont l'Info.plist porte
-    /// toujours le bundle attendu ; nil sinon (rien n'est ouvert).
+    /// Le bundle de l'entree, relu juste avant de l'ouvrir : un `.app` dans /Applications ou
+    /// ~/Applications (liens symboliques resolus) dont l'Info.plist porte toujours le bundle attendu ;
+    /// nil sinon (rien n'est ouvert).
     private func verifiedAppURL(_ entry: HubEntry) -> URL? {
         let url = entry.appURL
-        guard url.pathExtension == "app",
+        let roots = HubManifest.applicationRoots(home: FileManager.default.homeDirectoryForCurrentUser)
+        guard HubSafety.isAcceptableAppURL(url, roots: roots),
               InstalledApp.read(bundleURL: url)?.bundleIdentifier == entry.bundleIdentifier else {
             reload()
             return nil
