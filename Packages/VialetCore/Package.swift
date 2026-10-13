@@ -3,7 +3,7 @@ import Foundation
 import PackageDescription
 
 let kit: Package.Dependency = ProcessInfo.processInfo.environment["VIALETKIT_PATH"]
-    .map { .package(path: $0) } ?? .package(url: "https://github.com/avialet/vialetkit.git", .upToNextMinor(from: "0.2.0"))
+    .map { .package(path: $0) } ?? .package(url: "https://github.com/avialet/vialetkit.git", .upToNextMinor(from: "0.2.5"))
 
 let package = Package(
     name: "VialetCore",
@@ -13,14 +13,12 @@ let package = Package(
     ],
     dependencies: [
         kit,
-        .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0"),
     ],
     targets: [
         .target(
             name: "VialetCore",
             dependencies: [
                 .product(name: "VialetKit", package: "vialetkit"),
-                .product(name: "GRDB", package: "GRDB.swift"),
             ]
         ),
         // Harnais de tests : XCTest et Swift Testing ne sont pas livres avec

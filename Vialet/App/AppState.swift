@@ -2,19 +2,10 @@ import Foundation
 import Observation
 import VialetCore
 
-/// Etat partage de l'app : la base, et ce que les vues observent.
+/// Etat partage de l'app.
 @MainActor
 @Observable
 final class AppState {
     static let shared = AppState()
-
-    let database: AppDatabase
-
-    private init() {
-        do {
-            database = try AppDatabase.open()
-        } catch {
-            fatalError("Impossible d'ouvrir la base \(AppDatabase.defaultURL.path) : \(error)")
-        }
-    }
+    private init() {}
 }

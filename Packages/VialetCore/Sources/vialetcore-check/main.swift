@@ -1,5 +1,9 @@
 import VialetCore
 
 run([
-    databaseTests,
+    catalogTests,
+    installedAppTests,
+    listingTests,
+    updatesTests,
+    iconTests,
 ])
