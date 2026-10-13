@@ -237,11 +237,19 @@ final class HubModel {
         NSWorkspace.shared.openApplication(at: app, configuration: NSWorkspace.OpenConfiguration())
     }
 
-    /// `<scheme>://<id>` adresse a cette app precisement (pas a une autre copie).
+    /// `<scheme>://<id>` adresse a cette app precisement (pas a une autre copie). Sans activation :
+    /// l'app au premier plan le reste (une dictee doit se coller la ou l'on etait) ; l'app ciblee
+    /// s'active elle-meme si son action ouvre une fenetre.
     func perform(_ action: AppAction, of entry: HubEntry) {
         guard let url = entry.url(for: action.id) else { return open(entry) }
         guard let app = verifiedAppURL(entry) else { return }
-        NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
+        NSWorkspace.shared.open([url], withApplicationAt: app, configuration: Self.inBackground)
+    }
+
+    private static var inBackground: NSWorkspace.OpenConfiguration {
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = false
+        return configuration
     }
 
     /// L'app verifie et propose sa mise a jour (`<scheme>://update`) ; sans schema, elle s'ouvre
