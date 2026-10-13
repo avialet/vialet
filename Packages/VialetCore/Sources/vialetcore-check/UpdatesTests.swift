@@ -35,6 +35,6 @@ let updatesTests: (String, [Test]) = ("HubUpdates", [
     },
     Test("releaseURL") {
         expectEqual(HubUpdates.releaseURL(repository: "avialet/pico"),
-                    URL(string: "https://api.github.com/repos/avialet/pico/releases/latest")!)
+                    URL(string: "https://api.github.com/repos/avialet/pico/releases/latest"))
     },
 ])

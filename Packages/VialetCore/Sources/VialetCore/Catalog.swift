@@ -25,11 +25,13 @@ public enum Catalog {
     public static let url = URL(string: "https://vialet.app/apps.json")!
     /// Intervalle minimal entre deux lectures (24 h).
     public static let refreshInterval: TimeInterval = 24 * 3600
+    /// Taille maximale du catalogue (reponse ou cache) : 1 Mo.
+    public static let maxSize = 1024 * 1024
 
-    /// `{"apps": [{name, brand, url, tagline, status}]}` ; nil si ce n'est pas cette forme.
-    /// Une entree sans `brand` est ignoree ; un lien non https devient nil.
+    /// `{"apps": [{name, brand, url, tagline, status}]}` ; nil si ce n'est pas cette forme ou si les
+    /// donnees depassent `maxSize`. Une entree sans `brand` est ignoree ; un lien non https devient nil.
     public static func parse(_ data: Data) -> [CatalogEntry]? {
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        guard data.count <= maxSize, let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let list = json["apps"] as? [[String: Any]] else { return nil }
         return list.compactMap { item in
             guard let brand = item["brand"] as? String, !brand.isEmpty else { return nil }
@@ -38,6 +40,13 @@ public enum Catalog {
                                 tagline: item["tagline"] as? String ?? "",
                                 status: item["status"] as? String ?? "available")
         }
+    }
+
+    /// Catalogue en cache : taille verifiee avant la lecture.
+    public static func load(from url: URL) -> [CatalogEntry]? {
+        guard let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize, size <= maxSize,
+              let data = try? Data(contentsOf: url) else { return nil }
+        return parse(data)
     }
 
     /// Lecture due : jamais lu, plus de 24 h, ou horloge reculee.

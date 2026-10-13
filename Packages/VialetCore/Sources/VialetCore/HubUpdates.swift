@@ -13,8 +13,19 @@ public enum HubUpdates {
         return elapsed < 0 || elapsed >= floor
     }
 
-    public static func releaseURL(repository: String) -> URL {
-        URL(string: "https://api.github.com/repos/\(repository)/releases/latest")!
+    /// nil si le depot n'est pas `avialet/<nom>` valide (voir `HubSafety`).
+    public static func releaseURL(repository: String) -> URL? {
+        guard HubSafety.isValidRepository(repository) else { return nil }
+        return URL(string: "https://api.github.com/repos/\(repository)/releases/latest")
+    }
+
+    /// Resultat d'une verification interrompue ou complete : les apps interrogees (`checked`) prennent
+    /// leur nouveau resultat (`found`, absent = a jour), les autres gardent le precedent.
+    public static func merge(previous: [String: SemanticVersion], found: [String: SemanticVersion],
+                             checked: Set<String>) -> [String: SemanticVersion] {
+        var result = previous.filter { !checked.contains($0.key) }
+        for (id, version) in found where checked.contains(id) { result[id] = version }
+        return result
     }
 
     /// Version a annoncer : la Release est complete pour cette app (DMG `<appName>-X.Y.Z.dmg` et son

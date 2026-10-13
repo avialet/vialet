@@ -158,7 +158,8 @@ final class HubModel {
             var found: [String: SemanticVersion] = [:]
             var anySuccess = false
             for app in apps {
-                var request = URLRequest(url: HubUpdates.releaseURL(repository: app.repository))
+                guard let repository = app.repository, let url = HubUpdates.releaseURL(repository: repository) else { continue }
+                var request = URLRequest(url: url)
                 request.timeoutInterval = 15
                 request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
                 request.setValue(Brand.name, forHTTPHeaderField: "User-Agent")

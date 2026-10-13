@@ -10,8 +10,10 @@ public struct HubEntry: Equatable, Sendable, Identifiable {
     /// Version installee (Info.plist).
     public let version: String
     public let appURL: URL
+    /// Schema valide (voir `HubSafety`) ; nil : pas d'URL d'action.
     public let scheme: String?
-    public let repository: String
+    /// Depot `avialet/<nom>` valide ; nil : pas de verification de mise a jour.
+    public let repository: String?
     public let site: URL?
     /// Teintes de la fiche ; nil pour une app jamais lancee depuis Applications.
     public let palette: AccentPalette?
@@ -22,7 +24,7 @@ public struct HubEntry: Equatable, Sendable, Identifiable {
     public let tagline: String?
 
     public init(bundleIdentifier: String, name: String, displayName: String, version: String, appURL: URL,
-                scheme: String?, repository: String, site: URL?, palette: AccentPalette?, glyph: String,
+                scheme: String?, repository: String?, site: URL?, palette: AccentPalette?, glyph: String,
                 strokeDeep: Bool, actions: [AppAction], tagline: String?) {
         self.bundleIdentifier = bundleIdentifier; self.name = name; self.displayName = displayName
         self.version = version; self.appURL = appURL; self.scheme = scheme; self.repository = repository
@@ -30,9 +32,10 @@ public struct HubEntry: Equatable, Sendable, Identifiable {
         self.actions = actions; self.tagline = tagline
     }
 
-    /// `<scheme>://<id>` ; nil sans schema.
+    /// `<scheme>://<id>` ; nil sans schema ou si l'identifiant est invalide.
     public func url(for actionID: String) -> URL? {
-        scheme.flatMap { AppAction.url(scheme: $0, id: actionID) }
+        guard actionID == "update" || AppAction.isValidIdentifier(actionID) else { return nil }
+        return scheme.flatMap { AppAction.url(scheme: $0, id: actionID) }
     }
 
     /// `<scheme>://update` : l'app verifie et propose sa mise a jour.
@@ -76,10 +79,15 @@ public struct HubListing: Equatable, Sendable {
         let entries = sorted.map { app -> HubEntry in
             let m = byBundle[app.bundleIdentifier]
             let listed = catalogIndex(app).map { catalog[$0] }
+            // Schema : celui de l'Info.plist s'il y en a un, sinon celui de la fiche ; valide dans les deux cas.
+            let scheme = (app.scheme?.lowercased() ?? m?.scheme).flatMap { HubSafety.isAcceptableScheme($0) ? $0 : nil }
+            let fallback = "avialet/\(app.name.lowercased())"
+            let repository = m.map(\.repository).flatMap { HubSafety.isValidRepository($0) ? $0 : nil }
+                ?? (HubSafety.isValidRepository(fallback) ? fallback : nil)
             return HubEntry(bundleIdentifier: app.bundleIdentifier, name: app.name, displayName: app.displayName,
-                            version: app.version, appURL: app.url, scheme: app.scheme ?? m?.scheme,
-                            repository: m?.repository ?? "avialet/\(app.name.lowercased())",
-                            site: listed?.url ?? m.flatMap { URL(string: $0.site) }
+                            version: app.version, appURL: app.url, scheme: scheme,
+                            repository: repository,
+                            site: listed?.url ?? m.flatMap { URL(string: $0.site) }.flatMap { $0.scheme == "https" ? $0 : nil }
                                 ?? URL(string: "https://\(app.name.lowercased()).vialet.app"),
                             palette: m?.accentPalette, glyph: m?.glyph ?? "", strokeDeep: m?.strokeDeep ?? false,
                             actions: m?.actions ?? [], tagline: listed.map(\.tagline).flatMap { $0.isEmpty ? nil : $0 })

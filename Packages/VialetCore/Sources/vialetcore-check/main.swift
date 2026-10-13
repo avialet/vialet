@@ -6,4 +6,5 @@ run([
     listingTests,
     updatesTests,
     iconTests,
+    safetyTests,
 ])

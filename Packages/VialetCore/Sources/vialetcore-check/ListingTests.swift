@@ -67,4 +67,41 @@ let listingTests: (String, [Test]) = ("Listing", [
         let bare = HubListing.build(installed: [installed("Pince")], manifests: [], catalog: nil).apps[0]
         expectEqual(bare.updateURL, nil, "sans schema connu : pas d'URL")
     },
+    Test("untrustedManifestFieldsAreValidated") {
+        let evil = HubManifest(identity: AppIdentity(name: "Pico", displayName: "Pico", repository: "evil/../x",
+                                                     bundleIdentifier: "fr.vialet.pico", palette: .sea, glyph: ""),
+                               version: "0.2.0", appPath: "/Applications/Pico.app", scheme: "https", actions: [])
+        // Sans schema dans l'Info.plist, celui de la fiche est refuse s'il est systeme.
+        let entry = HubListing.build(installed: [installed("Pico")], manifests: [evil], catalog: nil).apps[0]
+        expectEqual(entry.repository, "avialet/pico", "depot invalide : repli")
+        expectEqual(entry.scheme, nil, "schema systeme refuse")
+        expectEqual(entry.updateURL, nil)
+        let fileSite = AppIdentity(name: "Pico", displayName: "Pico", repository: "avialet/pico",
+                                   bundleIdentifier: "fr.vialet.pico", palette: .sea, glyph: "",
+                                   site: URL(string: "file:///etc/passwd")!)
+        let m = HubManifest(identity: fileSite, version: "0.2.0", appPath: "/Applications/Pico.app", scheme: "pico", actions: [])
+        expectEqual(HubListing.build(installed: [installed("Pico")], manifests: [m], catalog: nil).apps[0].site,
+                    URL(string: "https://pico.vialet.app"), "site de la fiche non https : repli sur le site par defaut")
+    },
+    Test("infoPlistSchemeWinsOverManifest") {
+        let other = HubManifest(identity: picoIdentity, version: "0.2.0", appPath: "/Applications/Pico.app",
+                                scheme: "autre", actions: [AppAction("new", title: "N", symbol: "plus")])
+        let entry = HubListing.build(installed: [installed("Pico", scheme: "pico")], manifests: [other], catalog: nil).apps[0]
+        expectEqual(entry.scheme, "pico")
+        expectEqual(entry.url(for: "new"), URL(string: "pico://new"))
+        expectEqual(entry.url(for: "../x"), nil, "identifiant invalide")
+        expectEqual(entry.url(for: "New"), nil)
+    },
+    Test("manifestSchemeAcceptedWhenSaneAndNoInfoPlistScheme") {
+        let m = HubManifest(identity: picoIdentity, version: "0.2.0", appPath: "/Applications/Pico.app",
+                            scheme: "pico", actions: [])
+        expectEqual(HubListing.build(installed: [installed("Pico")], manifests: [m], catalog: nil).apps[0].scheme, "pico")
+    },
+    Test("invalidInfoPlistSchemeAndNameAreRejected") {
+        let weird = InstalledApp(bundleIdentifier: "fr.vialet.x", name: "../X", displayName: "X", version: "1.0.0",
+                                 url: URL(fileURLWithPath: "/Applications/X.app"), scheme: "file")
+        let entry = HubListing.build(installed: [weird], manifests: [], catalog: nil).apps[0]
+        expectEqual(entry.scheme, nil)
+        expectEqual(entry.repository, nil, "nom inutilisable : aucun depot, aucune requete")
+    },
 ])
