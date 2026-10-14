@@ -59,7 +59,8 @@ désactive dans **Réglages › Mises à jour**.
 - **L'icône** : la plaque de vialet.app (un secteur par app) en tons de gris, comme les symboles
   du système. Un point corail signale une mise à jour en attente.
 - **Le menu** : une ligne par app installée (sa plaque, son nom, sa version) ; un clic sur la ligne
-  ouvre l'app, un clic sur une pastille lance son action rapide. Sous « À découvrir », les apps du
+  ouvre l'app, un clic sur une pastille lance son action rapide. Une app peut afficher son état
+  sous son nom (« Éveillé jusqu'à 15 h 40 ») et ne proposer que les actions utiles à ce moment. Sous « À découvrir », les apps du
   catalogue pas encore installées (réglable). Échap ou un clic ailleurs le ferme.
 - **Raccourci global** facultatif (⌃⌥⇧Espace par défaut, à activer dans les Réglages) : ouvre le menu.
 - **Ordre des apps** : celui du catalogue de vialet.app (lu une fois par jour), puis alphabétique.
@@ -74,6 +75,10 @@ directs), puis la fiche que chaque app publie à son lancement dans
 (format décrit dans le README de [VialetKit](https://github.com/avialet/vialetkit)). Une app jamais
 lancée apparaît avec sa seule entrée « Ouvrir ». Le catalogue est gardé en cache dans
 `~/Library/Application Support/Vialet/catalog.json`.
+
+Depuis la 0.1.2, ce menu vient de VialetKit (`VialetKit/Hub`) : sans Vialet, dès que deux apps
+vialet.app (kit 0.2.6 ou plus) sont installées, l'une de celles qui tournent l'affiche à son tour,
+et les autres masquent leur icône. Vialet n'en est que la coquille, qui le tient pour toutes.
 
 ## Compiler depuis les sources
 
@@ -98,7 +103,7 @@ make dmg-layout   # fond et disposition de la fenêtre du DMG, dans scripts/dmg 
 
 | Dossier | Contenu |
 |---|---|
-| `Packages/VialetCore` | Noyau sans interface : catalogue, apps installées, liste du menu, mises à jour, icônes |
+| `Packages/VialetCore` | Noyau : re-exporte VialetKit, dont `Hub/` porte catalogue, apps installées, fiches, mises à jour, menu et icône ; tests de ce que Vialet en attend |
 | `Vialet` | L'application (AppKit et SwiftUI) ; `App/Brand.swift` porte son identité |
 | `scripts` | Assemblage de l'app et du DMG ; `scripts/dmg` : fond et disposition de sa fenêtre |
 | `docs` | [Publier une version](docs/publier-une-version.md), [tests](docs/tests.md), notes de version |

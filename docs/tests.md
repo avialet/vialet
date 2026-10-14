@@ -6,6 +6,9 @@ Xcode, les tests du noyau vivent dans
 
     make test        # = swift run vialetcore-check [filtre]
 
+Le menu rassembleur (catalogue, fiches, apps installées, mises à jour, icônes, élection) vit dans
+VialetKit depuis la 0.1.2 : ses tests sont ceux du kit (`swift run vialetkit-check Hub`).
+
 API du harnais (`Check.swift`) : `Test("nom") { ... }`, `expect(cond)`,
 `expectEqual(a, b)`, `expectThrows { ... }`.
 

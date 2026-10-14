@@ -15,7 +15,7 @@ extension AppDelegate {
             .filter { ["about", "update"].contains($0.name) }
         let own = [
             SnapshotScenario("menu") {
-                let window = SnapshotPreview.window(HubMenu(model: HubModel.shared).fontDesign(.rounded), margin: 0)
+                let window = SnapshotPreview.window(HubMenu(model: .shared, options: Brand.menuOptions).fontDesign(.rounded), margin: 0)
                 window.orderFrontRegardless()
                 try await Task.sleep(for: .milliseconds(600))
                 return window
@@ -41,11 +41,13 @@ extension AppDelegate {
 @MainActor
 enum SnapshotPreview {
     static func entry(_ name: String, _ display: String, _ version: String, _ palette: AccentPalette, glyph: String,
-                      strokeDeep: Bool = false, actions: [AppAction], tagline: String) -> HubEntry {
+                      strokeDeep: Bool = false, actions: [AppAction], tagline: String,
+                      status: String? = nil, active: Bool = false) -> HubEntry {
         HubEntry(bundleIdentifier: "fr.vialet.\(name.lowercased())", name: name, displayName: display, version: version,
                  appURL: URL(fileURLWithPath: "/Applications/\(name).app"), scheme: name.lowercased(),
                  repository: "avialet/\(name.lowercased())", site: URL(string: "https://\(name.lowercased()).vialet.app"),
-                 palette: palette, glyph: glyph, strokeDeep: strokeDeep, actions: actions, tagline: tagline)
+                 palette: palette, glyph: glyph, strokeDeep: strokeDeep, actions: actions, tagline: tagline,
+                 status: status, active: active)
     }
 
     static let listing = HubListing(apps: [
@@ -75,6 +77,15 @@ enum SnapshotPreview {
               glyph: "M 20 46 V 54 M 35 30 V 70 M 50 40 V 60 M 65 22 V 78 M 80 42 V 58",
               actions: [AppAction("dicter", title: "Dicter", symbol: "mic")],
               tagline: "Parlez, c'est \u{00E9}crit l\u{00E0} o\u{00F9} est le curseur."),
+        entry("Eveil", "\u{00C9}veil", "0.1.0",
+              AccentPalette(accent: 0x12A3B0, background: 0x12A3B0, deep: 0x043237, pale: 0xDCF8FB, night: 0x001F23, nightInk: 0xA9E4EA),
+              glyph: "M 14 70 H 86 M 30 70 C 30 58.95 38.95 50 50 50 C 61.05 50 70 58.95 70 70 M 50 30 V 40 M 22 42 L 29 49 M 78 42 L 71 49",
+              actions: [AppAction("1h", title: "1 h", symbol: "sun.max", visible: .idle),
+                        AppAction("sans-fin", title: "Sans fin", symbol: "infinity", visible: .idle),
+                        AppAction("arreter", title: "Arr\u{00EA}ter", symbol: "stop.circle", visible: .active),
+                        AppAction("plus-1h", title: "+1 h", symbol: "plus", visible: .active)],
+              tagline: "Le Mac reste \u{00E9}veill\u{00E9}, le temps qu'il faut.",
+              status: "\u{00C9}veill\u{00E9} jusqu'\u{00E0} 15\u{00A0}h\u{00A0}40", active: true),
     ], discover: [
         CatalogEntry(name: "Prochaine app", brand: "Prochaine", url: URL(string: "https://vialet.app"),
                      tagline: "Une app fictive, pour l'aper\u{00E7}u.", status: "available"),
@@ -124,7 +135,7 @@ enum IconSheet {
 
     /// Planche en points (rendue a 2x par la capture).
     static func render() -> NSImage {
-        let variants = StatusIcon.Variant.allCases
+        let variants = HubStatusIcon.Variant.allCases
         let rowH: CGFloat = 132, top: CGFloat = 56, situation: CGFloat = 150
         let width: CGFloat = 1240
         let height = top + rowH * CGFloat(variants.count) + situation
@@ -134,7 +145,7 @@ enum IconSheet {
             text("Ic\u{00F4}ne de barre des menus : trois propositions", at: NSPoint(x: 24, y: 16), size: 20, weight: .bold)
             for (row, variant) in variants.enumerated() {
                 let y = top + CGFloat(row) * rowH
-                let chosen = variant == StatusIcon.Variant.chosen
+                let chosen = variant == HubStatusIcon.Variant.chosen
                 text(label(variant) + (chosen ? "  (retenue)" : ""), at: NSPoint(x: 24, y: y + 6), size: 14, weight: .semibold)
                 var x: CGFloat = 24
                 for dark in [false, true] {
@@ -154,7 +165,7 @@ enum IconSheet {
         }
     }
 
-    private static func label(_ v: StatusIcon.Variant) -> String {
+    private static func label(_ v: HubStatusIcon.Variant) -> String {
         switch v {
         case .secteurs: "A. Secteurs (plaque d\u{00E9}coup\u{00E9}e)"
         case .tons: "B. Tons (plaque du hub en monochrome)"
@@ -162,11 +173,11 @@ enum IconSheet {
         }
     }
 
-    private static func cell(_ v: StatusIcon.Variant, dark: Bool, dot: Bool, in rect: NSRect) {
+    private static func cell(_ v: HubStatusIcon.Variant, dark: Bool, dot: Bool, in rect: NSRect) {
         (dark ? darkBar : lightBar).setFill()
         NSBezierPath(roundedRect: rect, xRadius: 8, yRadius: 8).fill()
         let ink = dark ? darkInk : lightInk
-        let image = StatusIcon.image(v, notched: dot)
+        let image = HubStatusIcon.image(v, notched: dot)
         let midY = rect.midY
         // 1x agrandi 4 fois, 2x agrandi 2 fois : 72 pt chacun.
         draw(image, scale: 1, ink: ink, dot: dot, in: NSRect(x: rect.minX + 12, y: midY - 36, width: 72, height: 72))
@@ -179,21 +190,21 @@ enum IconSheet {
     /// Rend le gabarit a `scale` pixels par point, le teinte comme la barre des menus, pose le point
     /// de mise a jour, puis l'affiche dans `rect` sans lissage (pixels visibles).
     private static func draw(_ image: NSImage, scale: Int, ink: NSColor, dot: Bool, in rect: NSRect) {
-        let px = Int(StatusIcon.pointSize) * scale
+        let px = Int(HubStatusIcon.pointSize) * scale
         guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: px, pixelsHigh: px, bitsPerSample: 8,
                                          samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
                                          bytesPerRow: 0, bitsPerPixel: 0) else { return }
-        rep.size = NSSize(width: StatusIcon.pointSize, height: StatusIcon.pointSize)
+        rep.size = NSSize(width: HubStatusIcon.pointSize, height: HubStatusIcon.pointSize)
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
-        let r = NSRect(x: 0, y: 0, width: StatusIcon.pointSize, height: StatusIcon.pointSize)
+        let r = NSRect(x: 0, y: 0, width: HubStatusIcon.pointSize, height: HubStatusIcon.pointSize)
         image.draw(in: r)
         ink.set()
         r.fill(using: .sourceIn)
         if dot {
             coral.setFill()
-            let d = StatusIcon.dotDiameter
-            NSBezierPath(ovalIn: NSRect(x: StatusIcon.dotCenter.x - d / 2, y: StatusIcon.dotCenter.y - d / 2, width: d, height: d)).fill()
+            let d = HubStatusIcon.dotDiameter
+            NSBezierPath(ovalIn: NSRect(x: HubStatusIcon.dotCenter.x - d / 2, y: HubStatusIcon.dotCenter.y - d / 2, width: d, height: d)).fill()
         }
         NSGraphicsContext.restoreGraphicsState()
         let out = NSImage(size: rep.size)
@@ -222,14 +233,14 @@ enum IconSheet {
                         from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
             x -= 18
         }
-        x -= StatusIcon.pointSize
-        let icon = StatusIcon.image(notched: dot)
+        x -= HubStatusIcon.pointSize
+        let icon = HubStatusIcon.image(notched: dot)
         let tinted = NSImage(size: icon.size, flipped: false) { r in
             icon.draw(in: r); ink.set(); r.fill(using: .sourceIn)
             if dot {
                 coral.setFill()
-                let d = StatusIcon.dotDiameter
-                NSBezierPath(ovalIn: NSRect(x: StatusIcon.dotCenter.x - d / 2, y: StatusIcon.dotCenter.y - d / 2, width: d, height: d)).fill()
+                let d = HubStatusIcon.dotDiameter
+                NSBezierPath(ovalIn: NSRect(x: HubStatusIcon.dotCenter.x - d / 2, y: HubStatusIcon.dotCenter.y - d / 2, width: d, height: d)).fill()
             }
             return true
         }

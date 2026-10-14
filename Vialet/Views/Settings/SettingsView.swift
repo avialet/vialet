@@ -16,7 +16,7 @@ struct SettingsView: View {
                        updateNote: "\u{00C9}changes r\u{00E9}seau de Vialet : la derni\u{00E8}re version publi\u{00E9}e sur GitHub de Vialet et de vos apps vialet.app, et le catalogue de vialet.app une fois par jour. Aucune donn\u{00E9}e n'est envoy\u{00E9}e.") {
             SettingsCard(icon: "square.grid.2x2", color: Theme.sun, title: "Menu") {
                 Toggle("Proposer les apps \u{00E0} d\u{00E9}couvrir", isOn: $showDiscover)
-                Text("Les apps vialet.app masquent leur propre ic\u{00F4}ne quand Vialet est install\u{00E9}e. Pour la retrouver : R\u{00E9}glages de l'app \u{203A} Ic\u{00F4}ne dans la barre des menus.")
+                Text("Les apps vialet.app masquent leur propre ic\u{00F4}ne quand Vialet est install\u{00E9}e. Pour la retrouver : R\u{00E9}glages de l'app \u{203A} Ic\u{00F4}ne dans la barre des menus. Sans Vialet, d\u{00E8}s deux apps install\u{00E9}es, l'une d'elles affiche ce m\u{00EA}me menu.")
                     .font(Theme.ui(12)).foregroundStyle(Theme.inkSoft)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -30,7 +30,7 @@ struct SettingsView: View {
 enum VialetHotKey {
     static func apply(_ enabled: Bool) {
         if enabled {
-            HotKeyController.shared.start { StatusItemController.shared.toggle() }
+            HotKeyController.shared.start { HubStatusItem.shared.toggle() }
         } else {
             HotKeyController.shared.suspend()
         }

@@ -9,7 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Mode capture : ni icone, ni raccourci, ni reseau.
         if runSnapshotIfRequested() { return }
         #endif
-        StatusItemController.shared.install()
+        HubStatusItem.shared.install()
         HubModel.shared.start()
         if UserDefaults.standard.bool(forKey: Brand.key("HotKeyEnabled")) { VialetHotKey.apply(true) }
         // Les apps re-evaluent leur icone de barre des menus (masquee tant que Vialet est installee).
@@ -30,12 +30,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Liens `vialet://` : ouvre le menu.
     func application(_ application: NSApplication, open urls: [URL]) {
-        StatusItemController.shared.open()
+        HubStatusItem.shared.open()
     }
 
     /// Relancer Vialet deja ouverte (Finder, Spotlight) : ouvre le menu.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        StatusItemController.shared.open()
+        HubStatusItem.shared.open()
         return true
     }
 
