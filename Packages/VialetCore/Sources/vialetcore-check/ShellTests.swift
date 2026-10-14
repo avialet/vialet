@@ -22,7 +22,7 @@ let shellTests: (String, [Test]) = ("Shell", [
                                 url: URL(fileURLWithPath: "/Applications/Pico.app"), scheme: "pico")
         expectEqual(HubListing.build(installed: [me, pico], manifests: [], catalog: nil).apps.map(\.name), ["Pico"])
         expectEqual(HubListing.hubBundleIdentifier, MenuBarPresence.hubBundleIdentifier)
-        expectEqual(HubElection.role(me: "fr.vialet.pico", hubAppInstalled: true, installed: ["fr.vialet.pico", "fr.vialet.allege"],
+        expectEqual(HubElection.role(me: "fr.vialet.pico", hubAppRunning: true, installed: ["fr.vialet.pico", "fr.vialet.allege"],
                                      runningHosts: ["fr.vialet.allege"]), .vialet)
     },
     Test("chuchoteDictationStaysInBackground") {

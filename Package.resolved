@@ -1,13 +1,13 @@
 {
-  "originHash" : "d84226775ca6ac5ec12d76768fd410ae16de49a85ae6b83040fa41fe955e6af3",
+  "originHash" : "b41711dd0ce584f4db61f312907069535cfffb5e7e2dd9b18d68f8bf902a0b96",
   "pins" : [
     {
       "identity" : "vialetkit",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/avialet/vialetkit.git",
       "state" : {
-        "revision" : "e53154e80233c5b0a248cd10a3f680032cca8b8e",
-        "version" : "0.2.5"
+        "revision" : "177ab3e4614efc92a214f3a7145c005e2d126082",
+        "version" : "0.2.6"
       }
     }
   ],
